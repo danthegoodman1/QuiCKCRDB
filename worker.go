@@ -1,6 +1,7 @@
 package quickcrdb
 
 import (
+	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"runtime"
 	"sync/atomic"
@@ -17,6 +18,7 @@ type (
 		stopWorkers  chan any
 		shuttingDown *atomic.Bool
 	}
+
 	workerConfig struct {
 		managerRoutines      int
 		workerRoutines       int
@@ -32,6 +34,9 @@ type (
 		vestingTimeRewriteThreshold time.Duration
 		fifo                        bool
 	}
+
+	// WorkerFunc is invoked by each worker thread when it receives and item for processing
+	WorkerFunc func(ctx context.Context, item QueueItem) error
 )
 
 var (
@@ -50,7 +55,7 @@ var (
 	}
 )
 
-func NewWorker(pool *pgxpool.Pool, hashRingSize int, opts ...WorkerOption) (*Worker, error) {
+func NewWorker(pool *pgxpool.Pool, hashRingSize int, workerFunction WorkerFunc, opts ...WorkerOption) (*Worker, error) {
 	worker := &Worker{
 		pool:         pool,
 		config:       defaultConfig,
