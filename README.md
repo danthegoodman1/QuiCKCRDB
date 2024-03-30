@@ -2,6 +2,10 @@
 
 The Apple QuiCK queue implemented on top of CockroachDB
 
+## Differences from QuiCK
+
+Due to CRDB's inability to change isolation levels mid interaction, we instead peek in a separate transaction using `READ COMMITTED` isolation.
+
 ## Logging
 
 QuiCKCRDB uses zerolog in JSON format, output to stdout
