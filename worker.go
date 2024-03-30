@@ -24,6 +24,7 @@ type (
 		// min time a queue remains empty before its pointer is deleted
 		pointerMinInactive          time.Duration
 		vestingTimeRewriteThreshold time.Duration
+		fifo                        bool
 	}
 )
 
@@ -54,4 +55,16 @@ func NewWorker(pool *pgxpool.Pool, opts ...WorkerOption) (*Worker, error) {
 	}
 
 	return worker, nil
+}
+
+func (w *Worker) scanner() {
+
+}
+
+func (w *Worker) manager() {
+
+}
+
+func (w *Worker) worker() {
+
 }

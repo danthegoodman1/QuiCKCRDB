@@ -15,3 +15,11 @@ This is analogous to multiple FoundationDB clusters in QuiCK.
 ## Hash token walking
 
 Like how QuiCK consumers walk multiple FoundationDB clusters, QuiCKCRDB consumers walk multiple hash tokens. Specifically, they walk them in order. If all nodes are started at the same time, this can introduce some initial increased contention. But over time they will spread out more evenly to cover the hash ring.
+
+## FIFO ordering
+
+QuiCKCRDB is able to maintain FIFO ordering through SQL-based enqueueing using the `FIFO()` worker option. The enqueue query inserts to a queue with the id `max(id) + 1`. While this can cause write contention, individual queues don't tend to be as busy.
+
+When using FIFO, the vesting time and priority are ignored and items are unable to use native delay-processing.
+
+To obtain higher throughput, leave FIFO disabled. In this case, the vesting time and priority will determine the order in which items are processed.

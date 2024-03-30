@@ -1,6 +1,6 @@
 create table quick_work_queue (
     queue_zone text not null,
-    id text not null,
+    id int8 not null, -- strictly increasing
     payload text not null,
     priority int8,
     vesting_time timestamptz,
@@ -10,7 +10,7 @@ create table quick_work_queue (
 )
 ;
 
-create index quick_work_queue_by_processing_order on quick_worker_queue(queue_zone, vesting_time, priority);
+create index quick_work_queue_by_processing_order on quick_worker_queue(queue_zone, vesting_time, priority) where vesting_time is not null and priority is not null;
 
 
 create table quick_top_level_queue (
