@@ -2,6 +2,8 @@ package quickcrdb
 
 import (
 	"context"
+	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"runtime"
 	"sync/atomic"
@@ -82,7 +84,8 @@ func (w *Worker) scanner() {
 			logger.Info().Msg("scanner exiting")
 			return
 		default:
-			// TODO: Scan hash token for queue zones
+			// Scan hash token for queue zones
+			w.scanHashToken(token)
 		}
 
 		token++
@@ -90,6 +93,19 @@ func (w *Worker) scanner() {
 			token = 0
 		}
 	}
+}
+
+func (w *Worker) scanHashToken(token int) error {
+	// Get queue zones
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10) // TODO: Make customizable
+	defer cancel()
+	err := ReliableExecInReadCommittedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, conn pgx.Tx) error {
+		topLevelQueues, err := selectVestedTopLevelQueues(ctx, conn, token)
+		if err != nil {
+			return fmt.Errorf("error in selectVestedTopLevelQueues: %w", err)
+		}
+
+	})
 }
 
 func (w *Worker) manager() {

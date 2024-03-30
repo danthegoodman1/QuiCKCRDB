@@ -15,7 +15,7 @@ create index quick_work_queue_by_processing_order on quick_worker_queue(queue_zo
 
 create table quick_top_level_queue (
     queue_zone text not null,
-    vesting_time timestamptz,
+    vesting_time timestamptz not null,
     lease_id text,
     hash_token int8 not null,
 
@@ -34,3 +34,6 @@ create table quick_top_level_queue_pointers (
     primary_key(queue_zone)
 )
 ;
+
+
+SET CLUSTER SETTING sql.txn.read_committed_isolation.enabled = 'true';

@@ -19,3 +19,5 @@ Otherwise, the log level is `warn`.
 ## Schema Setup
 
 You are required to create the tables found in `tables.sql`, with the provided names.
+
+Must also `SET CLUSTER SETTING sql.txn.read_committed_isolation.enabled = 'true';`
