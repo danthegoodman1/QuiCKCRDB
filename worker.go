@@ -95,17 +95,25 @@ func (w *Worker) scanner() {
 	}
 }
 
-func (w *Worker) scanHashToken(token int) error {
+func (w *Worker) scanHashToken(token int) {
 	// Get queue zones
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10) // TODO: Make customizable
 	defer cancel()
-	err := ReliableExecInReadCommittedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, conn pgx.Tx) error {
-		topLevelQueues, err := selectVestedTopLevelQueues(ctx, conn, token)
+	var topLevelQueues []quickTopLevelQueue
+	err := ReliableExecInReadCommittedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, conn pgx.Tx) (err error) {
+		topLevelQueues, err = selectVestedTopLevelQueues(ctx, conn, token)
 		if err != nil {
 			return fmt.Errorf("error in selectVestedTopLevelQueues: %w", err)
 		}
 
+		return
 	})
+	if err != nil {
+		logger.Error().Err(err).Msg("error scanning top level queues")
+		return
+	}
+
+	// TODO: Claim top level queues and send to manager goroutines
 }
 
 func (w *Worker) manager() {
