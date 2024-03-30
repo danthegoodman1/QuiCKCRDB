@@ -1,4 +1,5 @@
 create table quick_work_queue (
+    hash_token int8 not null,
     queue_zone text not null,
     id text not null,
     payload text not null,
@@ -6,18 +7,18 @@ create table quick_work_queue (
     vesting_time timestamptz,
     lease_id text,
 
-    primary key (queue_zone, id)
+    primary key (hash_token, queue_zone, id)
 )
 ;
 
-create index quick_work_queue_by_processing_order on quick_worker_queue(queue_zone, vesting_time, priority);
+create index quick_work_queue_by_processing_order on quick_worker_queue(hash_token,queue_zone, vesting_time, priority);
 
 
 create table quick_top_level_queue (
     queue_zone text not null,
     vesting_time timestamptz,
     lease_id text,
-    ring_size int8 not null,
+    hash_token int8 not null,
 
     primary_key(queue_zone)
 )
@@ -29,7 +30,7 @@ create index quick_top_level_queue_in_order on quick_top_level_quueue (vesting_t
 create table quick_top_level_queue_pointers (
     queue_zone text not null,
     vesting_time timestamptz,
-    ring_size int8 not null,
+    hash_token int8 not null,
 
     primary_key(queue_zone)
 )
