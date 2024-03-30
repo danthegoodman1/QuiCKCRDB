@@ -9,3 +9,9 @@ While this may seem difficult scale due to re-hashing, QuiCK conveniently implem
 The pointer index, used to reduce contention during enqueue by providing a low-contention check to see if a top-level queue record already exists, can naturally also store a previously used hash token. This means that when we go to enqueue to a queue zone that was created before a hash ring change, we can use the previous hash ring size to ensure that we always hit the same index.
 
 To optimize for incremental re-hashing, we do not use CRDB's native hash-partitioned indexes. Instead, we `ALTER TABLE ... SPLIT AT` to manually manage ranges. This allows us to directly communicate with a hash token across ring size changes.
+
+This is analogous to multiple FoundationDB clusters in QuiCK.
+
+## Hash token walking
+
+Like how QuiCK consumers walk multiple FoundationDB clusters, QuiCKCRDB consumers walk multiple hash tokens. Specifically, they walk them in order. If all nodes are started at the same time, this can introduce some initial increased contention. But over time they will spread out more evenly to cover the hash ring.
