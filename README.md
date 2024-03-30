@@ -2,9 +2,9 @@
 
 The Apple QuiCK queue implemented on top of CockroachDB
 
-## Differences from QuiCK
+## Architecture
 
-Due to CRDB's inability to change isolation levels mid interaction, we instead peek in a separate transaction using `READ COMMITTED` isolation.
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for more on how QuiCKCRDB works, and where it differs from QuiCK.
 
 ## Logging
 

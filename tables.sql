@@ -17,6 +17,7 @@ create table quick_top_level_queue (
     queue_zone text not null,
     vesting_time timestamptz,
     lease_id text,
+    ring_size int8 not null,
 
     primary_key(queue_zone)
 )
@@ -28,6 +29,7 @@ create index quick_top_level_queue_in_order on quick_top_level_quueue (vesting_t
 create table quick_top_level_queue_pointers (
     queue_zone text not null,
     vesting_time timestamptz,
+    ring_size int8 not null,
 
     primary_key(queue_zone)
 )
