@@ -1,6 +1,6 @@
 create table quick_work_queue (
     queue_zone text not null,
-    id int8 not null, -- strictly increasing
+    id int8 not null, -- strictly increasing when FIFO
     payload text not null,
     priority int8,
     vesting_time timestamptz,
