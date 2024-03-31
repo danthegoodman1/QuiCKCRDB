@@ -34,6 +34,3 @@ create table quick_top_level_queue_pointers (
     primary key(queue_zone)
 )
 ;
-
-
-SET CLUSTER SETTING sql.txn.read_committed_isolation.enabled = 'true';

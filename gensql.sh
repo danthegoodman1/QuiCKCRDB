@@ -8,4 +8,5 @@ sed -i -e 's/DESC//g' schema.sql
 sed -i -e 's/USING HASH.*//g' schema.sql
 rm -f query/*.sql.go
 docker run --rm -v $(pwd):/src -w /src sqlc/sqlc:1.19.1 generate
+rm *.sql-e
 echo done

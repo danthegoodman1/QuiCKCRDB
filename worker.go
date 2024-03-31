@@ -3,7 +3,7 @@ package quickcrdb
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5"
+	"github.com/danthegoodman1/QuiCKCRDB/query"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"runtime"
 	"sync/atomic"
@@ -99,9 +99,9 @@ func (w *Worker) scanHashToken(token int) {
 	// Get queue zones
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10) // TODO: Make customizable
 	defer cancel()
-	var topLevelQueues []quickTopLevelQueue
-	err := ReliableExecInReadCommittedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, conn pgx.Tx) (err error) {
-		topLevelQueues, err = selectVestedTopLevelQueues(ctx, conn, token)
+	var topLevelQueues []query.QuickTopLevelQueue
+	err := query.ReliableExecReadCommittedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
+		topLevelQueues, err = q.SelectTopLevelQueues(ctx, int64(token))
 		if err != nil {
 			return fmt.Errorf("error in selectVestedTopLevelQueues: %w", err)
 		}

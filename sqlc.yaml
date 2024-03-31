@@ -2,7 +2,7 @@ version: 2
 sql:
   - engine: "postgresql"
     schema: "schema.sql"
-    queries: "./query/"
+    queries: "./sql/"
     gen:
       go:
         sql_package: "pgx/v5"

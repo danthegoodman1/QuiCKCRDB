@@ -1,0 +1,1 @@
+SET CLUSTER SETTING sql.txn.read_committed_isolation.enabled = 'true';

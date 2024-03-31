@@ -1,4 +1,4 @@
-package quickcrdb
+package utils
 
 import (
 	"context"
@@ -31,8 +31,7 @@ func getEnvOrDefaultInt(env string, defaultVal int64) int64 {
 	} else {
 		intVal, err := strconv.ParseInt(e, 10, 64)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("Failed to parse string to int '%s'", env))
-			os.Exit(1)
+			return defaultVal
 		}
 
 		return intVal
@@ -83,7 +82,7 @@ var dbTracer = otel.GetTracerProvider().Tracer("db")
 func reliableExec(ctx context.Context, pool *pgxpool.Pool, tryTimeout time.Duration, f func(ctx context.Context, conn *pgxpool.Conn) error) error {
 	cfg := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 
-	return backoff.RetryNotify(func() error {
+	return backoff.Retry(func() error {
 		tryCtx, cancel := context.WithTimeout(ctx, tryTimeout)
 		defer cancel()
 		acquireCtx, acquireSpan := dbTracer.Start(tryCtx, "pool.Acquire")
@@ -109,9 +108,7 @@ func reliableExec(ctx context.Context, pool *pgxpool.Pool, tryTimeout time.Durat
 			return backoff.Permanent(err)
 		}
 		return err
-	}, cfg, func(err error, d time.Duration) {
-		logger.Info().Err(err).CallerSkipFrame(7).Msg("ReliableExec retrying")
-	})
+	}, cfg)
 }
 
 func IsPermSQLErr(err error) bool {
