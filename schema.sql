@@ -19,7 +19,7 @@ create table quick_top_level_queue (
     lease_id text,
     hash_token int8 not null,
 
-    primary_key(queue_zone)
+    primary key(queue_zone)
 )
 ;
 
@@ -31,7 +31,7 @@ create table quick_top_level_queue_pointers (
     vesting_time timestamptz,
     hash_token int8 not null,
 
-    primary_key(queue_zone)
+    primary key(queue_zone)
 )
 ;
 
