@@ -22,7 +22,7 @@ This is analogous to multiple FoundationDB clusters in QuiCK.
 
 CockroachDB is notable more sensitive to hot spots than FoundationDB, particularly around reading. In order to solve this, inserting nodes may use a in-memory cache for p, the pointer index to Qc to see if the queue zone exists in the top-level queue.
 
-This is safe because Qc (and thus p) are lazily garbage collected, the pointer index is an optimization (and therefore can fail-through), and newly ingested records generally would only push the vesting time further back. The rule of if Vesting(p) >> Vesting(x) then update Vesting(p) and Vesting(Qc).
+This is safe because Qc (and thus p) are lazily garbage collected, the pointer index is an optimization (and therefore can fail-through), and newly ingested records generally push the vesting time further back. The rule of if Vesting(p) >> Vesting(x) then update Vesting(p) and Vesting(Qc).
 
 ## Hash token walking
 
