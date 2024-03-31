@@ -24,6 +24,8 @@ CockroachDB is notable more sensitive to hot spots than FoundationDB, particular
 
 This is safe because Qc (and thus p) are lazily garbage collected, the pointer index is an optimization (and therefore can fail-through), and newly ingested records generally push the vesting time further back. The rule of if Vesting(p) >> Vesting(x) then update Vesting(p) and Vesting(Qc).
 
+The cache duration must never be longer than the `min_inactive` duration (and generally should be less to account for local clock drift), as otherwise you risk orphaning items in the queue.
+
 ## Hash token walking
 
 Like how QuiCK consumers walk multiple FoundationDB clusters, QuiCKCRDB consumers walk multiple hash tokens. Specifically, they walk them in order. If all nodes are started at the same time, this can introduce some initial increased contention. But over time they will spread out more evenly to cover the hash ring.
