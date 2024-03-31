@@ -1,5 +1,11 @@
 # QuiCKCRDB Architecture
 
+## Optional workers
+
+QuiCKCRDB does not require you to run the Scanner, Manager, and Worker goroutines like QuiCK does. This means it can be used as a pull-queue for remote consumers.
+
+To guarantee in-order processing in this mode, it is the responsibility of the consumer to request items sequentially.
+
 ## Incremental re-hashing
 
 An outstanding issue between FoundationDB and CockroachDB is the ability to use different isolation levels within the same transaction on FoundationDB. The lack of this functionality suggests to increase contention in CockroachDB when obtaining leases on queue zones (Qc). To solve this, we use a combination of hash and range partitioning within CockroachDB to create higher-level queue-zones by hash.
