@@ -34,7 +34,6 @@ type (
 		// min time a queue remains empty before its pointer is deleted
 		pointerMinInactive          time.Duration
 		vestingTimeRewriteThreshold time.Duration
-		fifo                        bool
 	}
 
 	// WorkerFunc is invoked by each worker thread when it receives and item for processing

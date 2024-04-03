@@ -22,9 +22,3 @@ func Workers(threads int) WorkerOption {
 		config.workerRoutines = threads
 	}
 }
-
-func FIFO() WorkerOption {
-	return func(config *workerConfig) {
-		config.fifo = true
-	}
-}
