@@ -23,7 +23,7 @@ create table quick_top_level_queue (
 )
 ;
 
-create index quick_top_level_queue_in_order on quick_top_level_quueue (hash_token, vesting_time);
+create index quick_top_level_queue_in_order on quick_top_level_queue (hash_token, vesting_time);
 
 
 create table quick_top_level_queue_pointers (
