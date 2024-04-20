@@ -16,17 +16,24 @@ update quick_top_level_queue
 set lease_id = $1
   , vesting_time = $2
 where queue_zone = $3
+and lease_id = $4 -- ensure it's still how we last saw it
     returning lease_id
 `
 
 type ObtainTopLevelQueueParams struct {
-	LeaseID     sql.NullString
+	NewLease    sql.NullString
 	VestingTime time.Time
 	QueueZone   string
+	KnownLease  sql.NullString
 }
 
 func (q *Queries) ObtainTopLevelQueue(ctx context.Context, arg ObtainTopLevelQueueParams) (sql.NullString, error) {
-	row := q.db.QueryRow(ctx, obtainTopLevelQueue, arg.LeaseID, arg.VestingTime, arg.QueueZone)
+	row := q.db.QueryRow(ctx, obtainTopLevelQueue,
+		arg.NewLease,
+		arg.VestingTime,
+		arg.QueueZone,
+		arg.KnownLease,
+	)
 	var lease_id sql.NullString
 	err := row.Scan(&lease_id)
 	return lease_id, err
