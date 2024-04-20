@@ -6,6 +6,7 @@ import (
 	"github.com/danthegoodman1/QuiCKCRDB/query"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -26,7 +27,9 @@ type (
 		queueZoneLeaseDuration time.Duration
 		queueItemLeaseDuration time.Duration
 
-		managerRecv chan query.QuickTopLevelQueue
+		managerRecv            chan query.QuickTopLevelQueue
+		processingQueueZones   map[string]string
+		processingQueueZonesMu *sync.Mutex
 	}
 
 	workerConfig struct {
@@ -76,6 +79,8 @@ func NewWorker(pool *pgxpool.Pool, hashRingSize int, queueZoneLeaseDuration, que
 		shuttingDown:           &atomic.Bool{},
 		queueItemLeaseDuration: queueItemLeaseDuration,
 		queueZoneLeaseDuration: queueZoneLeaseDuration,
+		processingQueueZones:   map[string]string{},
+		processingQueueZonesMu: &sync.Mutex{},
 	}
 
 	for _, opt := range opts {
@@ -104,7 +109,10 @@ func (w *Worker) launchScanner() {
 			return
 		case <-w.scannerTicker.C:
 			// Scan hash token for queue zones
-			w.scanHashToken(token)
+			err := w.scanHashToken(token)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("error in scanHashToken")
+			}
 		}
 
 		token++
@@ -114,26 +122,53 @@ func (w *Worker) launchScanner() {
 	}
 }
 
-func (w *Worker) scanHashToken(token int) {
+// scanHashToken performs the scanner algorithm on a given hash token
+func (w *Worker) scanHashToken(token int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), w.config.scannerInterval)
 	defer cancel()
 
 	// Get queue zones
 	var topLevelQueues []query.QuickTopLevelQueue
 	err := query.ReliableExecReadCommittedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
-		topLevelQueues, err = q.SelectTopLevelQueues(ctx, int64(token))
+		topLevelQueues, err = q.PeekTopLevelQueues(ctx, query.PeekTopLevelQueuesParams{
+			HashToken: int64(token),
+			Limit:     int32(w.config.peekMax),
+		})
 		if err != nil {
-			return fmt.Errorf("error in selectVestedTopLevelQueues: %w", err)
+			return fmt.Errorf("error in PeekTopLevelQueues: %w", err)
 		}
 
-		return
+		return nil
 	})
 	if err != nil {
-		logger.Fatal().Err(err).Msg("error scanning top level queues")
-		return
+		return err
 	}
 
-	// TODO: Send queue zone pointers to manager
+	// First check which we are already processing
+	func() {
+		w.processingQueueZonesMu.Lock()
+		defer w.processingQueueZonesMu.Unlock()
+		var notProcessing []query.QuickTopLevelQueue
+		for _, queue := range topLevelQueues {
+			if _, exists := w.processingQueueZones[queue.QueueZone]; !exists {
+				notProcessing = append(notProcessing, queue)
+			}
+		}
+
+		// Swap the lists to remove the ones we are already processing
+		topLevelQueues = notProcessing
+	}()
+
+	// Send queue zone pointers to manager
+	for _, queue := range topLevelQueues {
+		// Don't block
+		select {
+		case w.managerRecv <- queue:
+			continue
+		default:
+			continue
+		}
+	}
 }
 
 func (w *Worker) launchManager(managerID string) {

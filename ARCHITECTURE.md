@@ -31,3 +31,5 @@ The cache duration must never be longer than the `min_inactive` duration (and ge
 ## Hash token walking
 
 Like how QuiCK consumers walk multiple FoundationDB clusters, QuiCKCRDB consumers walk multiple hash tokens. Specifically, they walk them in order. If all nodes are started at the same time, this can introduce some initial increased contention. But over time they will spread out more evenly to cover the hash ring.
+
+Likewise, the scanner algorithm has been adjusted to process per hash token. Additionally, it does not attempt to spin on a given hash token, but rather peeks each one once per step of the hash ring.

@@ -7,40 +7,23 @@ package query
 
 import (
 	"context"
-	"database/sql"
-	"time"
 )
 
-const obtainTopLevelQueue = `-- name: ObtainTopLevelQueue :one
-update quick_top_level_queue
-set lease_id = $1
-, vesting_time = $2
-where queue_zone = $3
-returning lease_id
-`
-
-type ObtainTopLevelQueueParams struct {
-	LeaseID     sql.NullString
-	VestingTime time.Time
-	QueueZone   string
-}
-
-func (q *Queries) ObtainTopLevelQueue(ctx context.Context, arg ObtainTopLevelQueueParams) (sql.NullString, error) {
-	row := q.db.QueryRow(ctx, obtainTopLevelQueue, arg.LeaseID, arg.VestingTime, arg.QueueZone)
-	var lease_id sql.NullString
-	err := row.Scan(&lease_id)
-	return lease_id, err
-}
-
-const selectTopLevelQueues = `-- name: SelectTopLevelQueues :many
+const peekTopLevelQueues = `-- name: PeekTopLevelQueues :many
 select queue_zone, vesting_time, lease_id, hash_token
 from quick_top_level_queue
 where hash_token < $1
 and vesting_time <= now()
+limit $2
 `
 
-func (q *Queries) SelectTopLevelQueues(ctx context.Context, hashToken int64) ([]QuickTopLevelQueue, error) {
-	rows, err := q.db.Query(ctx, selectTopLevelQueues, hashToken)
+type PeekTopLevelQueuesParams struct {
+	HashToken int64
+	Limit     int32
+}
+
+func (q *Queries) PeekTopLevelQueues(ctx context.Context, arg PeekTopLevelQueuesParams) ([]QuickTopLevelQueue, error) {
+	rows, err := q.db.Query(ctx, peekTopLevelQueues, arg.HashToken, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
