@@ -7,7 +7,30 @@ package query
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
+
+const obtainTopLevelQueue = `-- name: ObtainTopLevelQueue :one
+update quick_top_level_queue
+set lease_id = $1
+, vesting_time = $2
+where queue_zone = $3
+returning lease_id
+`
+
+type ObtainTopLevelQueueParams struct {
+	LeaseID     sql.NullString
+	VestingTime time.Time
+	QueueZone   string
+}
+
+func (q *Queries) ObtainTopLevelQueue(ctx context.Context, arg ObtainTopLevelQueueParams) (sql.NullString, error) {
+	row := q.db.QueryRow(ctx, obtainTopLevelQueue, arg.LeaseID, arg.VestingTime, arg.QueueZone)
+	var lease_id sql.NullString
+	err := row.Scan(&lease_id)
+	return lease_id, err
+}
 
 const selectTopLevelQueues = `-- name: SelectTopLevelQueues :many
 select queue_zone, vesting_time, lease_id, hash_token

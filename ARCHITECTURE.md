@@ -1,5 +1,7 @@
 # QuiCKCRDB Architecture
 
+QuiCKCRDB is designed to fail fast: if there are errors in operations against the database, the default operation is the fatal log (log, flush, and exit 1). This ensures that any incorrect state that could possible exist is immediately terminated, and the goroutines are not orphaned to never being able to process.
+
 ## Optional workers
 
 QuiCKCRDB does not require you to run the Scanner, Manager, and Worker goroutines like QuiCK does. This means it can be used as a pull-queue for remote consumers.
