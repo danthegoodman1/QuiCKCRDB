@@ -33,3 +33,13 @@ The cache duration must never be longer than the `min_inactive` duration (and ge
 Like how QuiCK consumers walk multiple FoundationDB clusters, QuiCKCRDB consumers walk multiple hash tokens. Specifically, they walk them in order. If all nodes are started at the same time, this can introduce some initial increased contention. But over time they will spread out more evenly to cover the hash ring.
 
 Likewise, the scanner algorithm has been adjusted to process per hash token. Additionally, it does not attempt to spin on a given hash token, but rather peeks each one once per step of the hash ring.
+
+## Limitations
+
+There are some closely related limitations to QuiCK on CRDB, both relating to transactions.
+
+The first is connection pooling. Because transactions hold open a connection, the throughput will likely be limited by content on pool connections. FoundationDB uses optimistic transactions such that connections aren't held unless an operation is currently processing: They don't have 'sessions'.
+
+The next issue is that because there are the extra delays between write operation round trips due to the session-style transactions, this increases the time window when conflicts can occur. The pointer index and hash ring should both reduce this greatly, but it's still likely to be higher than FoundationDB's conflict rate.
+
+Another issue is a single transaction can't use multiple isolation levels, so if you want to use a read committed isolation level to read the pointer index, then you'll need to use another connection. This further exacerbates the problem of connection pool content, and compounds the issue with more time for serialization conflicts to occur.
