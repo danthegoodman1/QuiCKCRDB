@@ -6,14 +6,21 @@ import (
 	"errors"
 	"fmt"
 	"github.com/danthegoodman1/QuiCKCRDB/query"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"time"
 )
 
 func (w *Worker) managerObtainTopLevelQueue(ctx context.Context, queue query.QuickTopLevelQueue) error {
-	leaseID := "" // TODO: generate uuid
+	leaseUUID, err := uuid.NewUUID()
+	if err != nil {
+		return fmt.Errorf("error in NewUUID: %w", err)
+	}
+
+	leaseID := leaseUUID.String()
+
 	// TODO: make obtain timeout customizable
-	err := query.ReliableExecInSerializedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
+	err = query.ReliableExecInSerializedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
 		_, err = q.ObtainTopLevelQueue(ctx, query.ObtainTopLevelQueueParams{
 			NewLease: sql.NullString{
 				Valid:  true,
@@ -42,7 +49,31 @@ func (w *Worker) managerObtainTopLevelQueue(ctx context.Context, queue query.Qui
 
 	// TODO: Check if it's empty
 
-	// TODO: Dequeue messages and send to worker threads
+	// Dequeue messages and send to worker threads
+	err = query.ReliableExecInSerializedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
+		_, err = q.DequeueItems(ctx, query.DequeueItemsParams{
+			HashToken: queue.HashToken,
+			QueueZone: queue.QueueZone,
+			Limit:     int32(w.config.dequeueMax),
+			VestingTime: sql.NullTime{
+				Valid: true,
+				Time:  time.Now().Add(w.queueItemLeaseDuration),
+			},
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				// We didn't obtain it
+				logger.Debug().Msgf("failed to obtain queue item")
+				return nil
+			}
+			return fmt.Errorf("error in DequeueItems: %w", err)
+		}
+
+		return
+	})
+	if err != nil {
+		return err
+	}
 
 	// TODO: get min vesting time
 

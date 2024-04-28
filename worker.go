@@ -169,6 +169,8 @@ func (w *Worker) scanHashToken(token int) error {
 			continue
 		}
 	}
+
+	return nil
 }
 
 func (w *Worker) launchManager(managerID string) {

@@ -11,6 +11,80 @@ import (
 	"time"
 )
 
+const dequeueItems = `-- name: DequeueItems :many
+with toupdate as (
+    select queue_zone, vesting_time, lease_id, hash_token
+    from quick_top_level_queue
+    where quick_top_level_queue.hash_token < $1
+      and quick_top_level_queue.vesting_time <= now()
+      and quick_top_level_queue.queue_zone = $2
+    limit $3
+)
+update quick_work_queue
+set vesting_time = $4
+from toupdate
+where vesting_time <= now()
+and quick_work_queue.queue_zone = toupdate.queue_zone
+and quick_work_queue.id = toupdate.id
+returning toupdate.queue_zone, toupdate.vesting_time, toupdate.lease_id, hash_token, quick_work_queue.queue_zone, id, payload, priority, quick_work_queue.vesting_time, quick_work_queue.lease_id
+`
+
+type DequeueItemsParams struct {
+	HashToken   int64
+	QueueZone   string
+	Limit       int32
+	VestingTime sql.NullTime
+}
+
+type DequeueItemsRow struct {
+	QueueZone     string
+	VestingTime   time.Time
+	LeaseID       sql.NullString
+	HashToken     int64
+	QueueZone_2   string
+	ID            int64
+	Payload       string
+	Priority      sql.NullInt64
+	VestingTime_2 sql.NullTime
+	LeaseID_2     sql.NullString
+}
+
+func (q *Queries) DequeueItems(ctx context.Context, arg DequeueItemsParams) ([]DequeueItemsRow, error) {
+	rows, err := q.db.Query(ctx, dequeueItems,
+		arg.HashToken,
+		arg.QueueZone,
+		arg.Limit,
+		arg.VestingTime,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DequeueItemsRow
+	for rows.Next() {
+		var i DequeueItemsRow
+		if err := rows.Scan(
+			&i.QueueZone,
+			&i.VestingTime,
+			&i.LeaseID,
+			&i.HashToken,
+			&i.QueueZone_2,
+			&i.ID,
+			&i.Payload,
+			&i.Priority,
+			&i.VestingTime_2,
+			&i.LeaseID_2,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const obtainTopLevelQueue = `-- name: ObtainTopLevelQueue :one
 update quick_top_level_queue
 set lease_id = $1
