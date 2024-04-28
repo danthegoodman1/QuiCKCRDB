@@ -47,32 +47,42 @@ func (w *Worker) managerObtainTopLevelQueue(ctx context.Context, queue query.Qui
 
 	// We obtained it
 
-	// TODO: Check if it's empty
-
-	// Dequeue messages and send to worker threads
-	err = query.ReliableExecInSerializedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
-		_, err = q.DequeueItems(ctx, query.DequeueItemsParams{
-			HashToken: queue.HashToken,
-			QueueZone: queue.QueueZone,
-			Limit:     int32(w.config.dequeueMax),
-			VestingTime: sql.NullTime{
-				Valid: true,
-				Time:  time.Now().Add(w.queueItemLeaseDuration),
-			},
-		})
+	// Check if it's empty
+	var queueEmpty bool
+	err = query.ReliableExecReadCommittedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
+		queueEmpty, err = q.CheckQueueHasAtLeastOneItem(ctx, queue.QueueZone)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				// We didn't obtain it
-				logger.Debug().Msgf("failed to obtain queue item")
-				return nil
-			}
-			return fmt.Errorf("error in DequeueItems: %w", err)
+			return fmt.Errorf("error in CheckQueueHasAtLeastOneItem: %w", err)
 		}
 
 		return
 	})
-	if err != nil {
-		return err
+
+	if !queueEmpty {
+		// Dequeue messages and send to worker threads
+		err = query.ReliableExecInSerializedTx(ctx, w.pool, time.Second*10, func(ctx context.Context, q *query.Queries) (err error) {
+			_, err = q.DequeueItems(ctx, query.DequeueItemsParams{
+				QueueZone: queue.QueueZone,
+				Limit:     int32(w.config.dequeueMax),
+				VestingTime: sql.NullTime{
+					Valid: true,
+					Time:  time.Now().Add(w.queueItemLeaseDuration),
+				},
+			})
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					// We didn't obtain it
+					logger.Debug().Msgf("failed to obtain queue item")
+					return nil
+				}
+				return fmt.Errorf("error in DequeueItems: %w", err)
+			}
+
+			return
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	// TODO: get min vesting time

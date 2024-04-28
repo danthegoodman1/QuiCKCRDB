@@ -11,26 +11,41 @@ import (
 	"time"
 )
 
+const checkQueueHasAtLeastOneItem = `-- name: CheckQueueHasAtLeastOneItem :one
+select coalesce((
+    select 1
+    from quick_work_queue
+    where queue_zone = $1
+    limit 1
+), 0)::bool
+`
+
+func (q *Queries) CheckQueueHasAtLeastOneItem(ctx context.Context, queueZone string) (bool, error) {
+	row := q.db.QueryRow(ctx, checkQueueHasAtLeastOneItem, queueZone)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const dequeueItems = `-- name: DequeueItems :many
 with toupdate as (
-    select queue_zone, vesting_time, lease_id, hash_token
-    from quick_top_level_queue
-    where quick_top_level_queue.hash_token < $1
-      and quick_top_level_queue.vesting_time <= now()
-      and quick_top_level_queue.queue_zone = $2
-    limit $3
+    select queue_zone, id, payload, priority, vesting_time, lease_id
+    from quick_work_queue
+      where quick_work_queue.queue_zone = $1
+      and quick_work_queue.vesting_time <= now()
+    order by priority, vesting_time
+    limit $2
 )
 update quick_work_queue
-set vesting_time = $4
+set vesting_time = $3
 from toupdate
 where vesting_time <= now()
 and quick_work_queue.queue_zone = toupdate.queue_zone
 and quick_work_queue.id = toupdate.id
-returning toupdate.queue_zone, toupdate.vesting_time, toupdate.lease_id, hash_token, quick_work_queue.queue_zone, id, payload, priority, quick_work_queue.vesting_time, quick_work_queue.lease_id
+returning toupdate.queue_zone, toupdate.id, toupdate.payload, toupdate.priority, toupdate.vesting_time, toupdate.lease_id, quick_work_queue.queue_zone, quick_work_queue.id, quick_work_queue.payload, quick_work_queue.priority, quick_work_queue.vesting_time, quick_work_queue.lease_id
 `
 
 type DequeueItemsParams struct {
-	HashToken   int64
 	QueueZone   string
 	Limit       int32
 	VestingTime sql.NullTime
@@ -38,24 +53,21 @@ type DequeueItemsParams struct {
 
 type DequeueItemsRow struct {
 	QueueZone     string
-	VestingTime   time.Time
-	LeaseID       sql.NullString
-	HashToken     int64
-	QueueZone_2   string
 	ID            int64
 	Payload       string
 	Priority      sql.NullInt64
+	VestingTime   sql.NullTime
+	LeaseID       sql.NullString
+	QueueZone_2   string
+	ID_2          int64
+	Payload_2     string
+	Priority_2    sql.NullInt64
 	VestingTime_2 sql.NullTime
 	LeaseID_2     sql.NullString
 }
 
 func (q *Queries) DequeueItems(ctx context.Context, arg DequeueItemsParams) ([]DequeueItemsRow, error) {
-	rows, err := q.db.Query(ctx, dequeueItems,
-		arg.HashToken,
-		arg.QueueZone,
-		arg.Limit,
-		arg.VestingTime,
-	)
+	rows, err := q.db.Query(ctx, dequeueItems, arg.QueueZone, arg.Limit, arg.VestingTime)
 	if err != nil {
 		return nil, err
 	}
@@ -65,13 +77,15 @@ func (q *Queries) DequeueItems(ctx context.Context, arg DequeueItemsParams) ([]D
 		var i DequeueItemsRow
 		if err := rows.Scan(
 			&i.QueueZone,
-			&i.VestingTime,
-			&i.LeaseID,
-			&i.HashToken,
-			&i.QueueZone_2,
 			&i.ID,
 			&i.Payload,
 			&i.Priority,
+			&i.VestingTime,
+			&i.LeaseID,
+			&i.QueueZone_2,
+			&i.ID_2,
+			&i.Payload_2,
+			&i.Priority_2,
 			&i.VestingTime_2,
 			&i.LeaseID_2,
 		); err != nil {
